@@ -1,10 +1,13 @@
-name: Automated IPTV Playlist Sync (Pure Static)
+name: Automated IPTV Playlist Sync (Pure HTTPS Proxy)
 
 on:
-  workflow_dispatch: # 静态版主要通过手动点击来生成更新文件
+  schedule:
+    # 设定定时任务，每 6 小时自动从德国节点爬取、重写并更新发布一次
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # 支持手动点击立即触发
 
 permissions:
-  contents: write
+  contents: write # 赋予写入代码仓库的最高权限
 
 jobs:
   sync_and_convert:
@@ -20,9 +23,11 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Run Static Rewrite Logic
+    - name: Run Direct HTTPS Proxy Conversion Script
       env:
+        SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
+        HTTPS_PROXY_URL: ${{ secrets.HTTPS_PROXY_URL }}
       run: python convert.py
 
     - name: Commit and Force Push M3U to Repository
@@ -32,10 +37,12 @@ jobs:
         
         if [ -f "live.m3u" ]; then
           git add live.m3u
-          git commit -m "自动同步：静态M3U直播源已成功写入仓库" --allow-empty
+          # 即使源列表暂时没有变化，也强制提交以更新物理时间戳，确保订阅有效
+          git commit -m "自动同步：已成功通过德国 HTTPS 原生渠道重写静态 M3U 列表" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
-          echo "恭喜！最新文件已成功呈现在您的仓库主页。"
+          echo "恭喜！最新文件已成功发布并呈现在您的仓库主页。"
         else
-          echo "错误：未能生成文件"
+          echo "致命错误：未能检测到 live.m3u 物理生成，请检查上方抓取日志！"
           exit 1
         fi
+
