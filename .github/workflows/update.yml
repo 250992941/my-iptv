@@ -20,24 +20,16 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install Python Proxy Dependencies
-      run: |
-        pip install PySocks sockshandler
-
     - name: Download and Run NaiveProxy Standard Client
       env:
         NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: |
-        # 1. 动态获取官方最新稳定版的 Linux-x64 静态包链接
-        # 针对当前最新的 GitHub Runner Ubuntu 环境进行了完美适配，免安装依赖
         echo "正在下载官方最新的 NaiveProxy 全静态编译版..."
         curl -L -o naiveproxy.tar.xz https://github.com
         
         tar -xf naiveproxy.tar.xz
-        # 进入解压后的目录
         cd naiveproxy-v120.0.6099.71-2-linux-x64
         
-        # 2. 生成标准的 NaiveProxy 客户端本地 SOCKS5 转发配置文件
         cat <<EOF > config.json
         {
           "listen": "socks://127.0.0.1:1080",
@@ -46,25 +38,21 @@ jobs:
         EOF
         
         echo "正在后台启动 NaiveProxy 核心隧道进程..."
-        # 启动客户端，并允许输出基础调试信息，防止静默挂死
         ./naive config.json > naive.log 2>&1 &
         
         echo "等待本地 1080 端口就绪机制建立..."
         sleep 7
         
-        # 打印 NaiveProxy 进程启动日志，以便在 Actions 页面看清是否握手成功
         echo "=== NaiveProxy 客户端当前运行状态及日志 ==="
         cat naive.log || echo "无日志输出"
         echo "=========================================="
-        
-        # 3. 验证本地 1080 端口是否成功通过你的日本节点连通公网
-        echo "测试本地 SOCKS5 隧道可用性（握手原 IPTV 域名）："
-        curl -I --socks5-hostname 127.0.0.1:1080 https://898757.xyz || echo "警告：当前节点建立连接超时，尝试直接执行抓取脚本"
 
     - name: Run Conversion Script
       env:
         SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
+        # 【核心改动】直接将代理作为系统全局环境变量传给 Python，无需安装任何库
+        ALL_PROXY: "socks5h://127.0.0.1:1080"
       run: python convert.py
 
     - name: Commit and Push to Repository
@@ -76,3 +64,4 @@ jobs:
           git commit -m "自动更新：通过原生日本 Naive 链路成功重写静态 M3U 列表" || echo "列表无变化，无需更新"
           git push
         fi
+
