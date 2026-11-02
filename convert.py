@@ -1,9 +1,11 @@
 import os
 
 def main():
-    target_domain = os.environ.get("TARGET_PROXY_DOMAIN", "caonima.898757.xyz")
+    # 从 GitHub Secrets 中读取你的 Vercel 域名
+    # 确保变量里只有 my-iptv-gamma.vercel.app，不要带 https:// 
+    target_domain = os.environ.get("TARGET_PROXY_DOMAIN", "my-iptv-gamma.vercel.app").strip()
     
-    # === 请将你在浏览器里获取到的 #EXTM3U 文本全部粘贴到下面三引号之间 ===
+    # === 请确保你的三引号里是你完整的、从浏览器里复制出来的真实 IPTV 文本 ===
     raw_m3u_text = """#EXTM3U x-tvg-url="http://caonima.898757.xyz/sub/Zz0uFf9Cz0kp/epg.xml.gz"
 #EXTINF:-1 tvg-id="stream-f4f9499d-607b-40aa-8fee-f10f774b13c3" tvg-name="YOG CH01" group-title="🏅青奥会",YOG CH01
 http://caonima.898757.xyz/l/NUNiA3nqpusEnsNkG0wRmCbxb8d_5dfUpWPXP58gO1mhXlK0h8oWaExF9Tqbt94g/index.m3u8
@@ -4101,13 +4103,15 @@ http://caonima.898757.xyz/l/PY92QuMj_T2CS5FYeizq5hzR6DvRzOwt99Wpqci9QzsrnJFdo0BO
 """
     # ===================================================================
     
-    if len(raw_m3u_text) < 50 and "#EXTM3U" not in raw_m3u_text:
-        print("提示: 请先将真实的 M3U 文本复制并替换到 convert.py 代码中的 raw_m3u_text 区域！")
+    if "caonima.898757.xyz" not in raw_m3u_text and "#EXTM3U" not in raw_m3u_text:
+        print("提示: 列表中没有找到原域名，请检查粘贴的原始文本是否正确！")
         return
 
-    print(f"正在基于本地静态数据进行重构清洗，目标中转路径: {target_domain}")
+    print(f"正在进行国内专属 Vercel 媒体中转站路径重写: {target_domain}")
     
     original_domain = "caonima.898757.xyz"
+    
+    # 核心精准替换：把原域名批量换成你的 Vercel 中转站，保留后面的 /l/ 和切片名
     rewritten_content = raw_m3u_text.replace(f"http://{original_domain}", f"https://{target_domain}")
     rewritten_content = rewritten_content.replace(f"https://{original_domain}", f"https://{target_domain}")
 
@@ -4115,7 +4119,7 @@ http://caonima.898757.xyz/l/PY92QuMj_T2CS5FYeizq5hzR6DvRzOwt99Wpqci9QzsrnJFdo0BO
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(rewritten_content)
     
-    print(f"【成功】静态列表本地清洗完成！已生成文件: {output_path}")
+    print(f"【成功】静态列表重构清洗完成！文件已保存为: {output_path}")
 
 if __name__ == "__main__":
     main()
