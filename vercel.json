@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/l/(.*)",
+      "destination": "https://898757.xyz"
+    },
+    {
+      "source": "/sub/(.*)",
+      "destination": "https://898757.xyz"
+    }
+  ]
+}
