@@ -1,9 +1,7 @@
-name: Automated IPTV Playlist Sync (Pure Native)
+name: Automated IPTV Playlist Sync (Pure Static)
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 静态版主要通过手动点击来生成更新文件
 
 permissions:
   contents: write
@@ -22,11 +20,9 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Run Native NaiveProxy Logic Script
+    - name: Run Static Rewrite Logic
       env:
-        SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
-        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: python convert.py
 
     - name: Commit and Force Push M3U to Repository
@@ -35,12 +31,11 @@ jobs:
         git config --local user.name "GitHub Actions"
         
         if [ -f "live.m3u" ]; then
-          echo "live.m3u 文件生成成功，正在推送到仓库..."
           git add live.m3u
           git commit -m "自动同步：静态M3U直播源已成功写入仓库" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
           echo "恭喜！最新文件已成功呈现在您的仓库主页。"
         else
-          echo "错误：Python 脚本未能正确导出 live.m3u 文件"
+          echo "错误：未能生成文件"
           exit 1
         fi
