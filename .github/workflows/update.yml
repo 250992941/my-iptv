@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # 确保有权限创建发布页面
 
 jobs:
   sync_and_convert:
@@ -27,12 +27,20 @@ jobs:
         NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: python convert.py
 
-    - name: Commit and Push to Repository
-      run: |
-        git config --local user.email "actions@github.com"
-        git config --local user.name "GitHub Actions"
-        if [ -f "live.m3u" ]; then
-          git add live.m3u
-          git commit -m "自动更新：纯Python无缝握手同步完成" || echo "列表无变化，无需更新"
-          git push
-        fi
+    # 【新增核心步骤】将生成的 live.m3u 自动发布到 GitHub 静态产物中心
+    - name: Upload M3U Playlist to Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: iptv-playlist
+        path: live.m3u
+        retention-days: 7 # 临时保存7天，每次定时任务会自动覆盖更新
+
+    # 【更方便的国内直连法】自动生成一个永久的公开 Release 链接
+    - name: Publish to GitHub Releases
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: Latest IPTV Source
+        files: live.m3u
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
