@@ -1,4 +1,4 @@
-name: Automated IPTV Playlist Sync (NaiveProxy)
+name: Automated IPTV Playlist Sync (Pure Python)
 
 on:
   schedule:
@@ -15,51 +15,16 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Set up Go Environment
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable' # 自动配置最新的稳定 Go 环境
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Compile and Run NaiveProxy Core Client
-      env:
-        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
-      run: |
-        echo "正在基于当前环境自动在线构建官方原生的 NaiveProxy 客户端..."
-        # 直接通过 Go 生态进行全自动编译，免除 tar/xz 文件的解压兼容性报错
-        go install ://github.com
-        
-        # 确认生成的 Naive 程序路径
-        NAIVE_BIN="$(go env GOPATH)/bin/naive"
-        
-        echo "动态配置 NaiveProxy 客户端本地 SOCKS5 转发..."
-        cat <<EOF > config.json
-        {
-          "listen": "socks://127.0.0.1:1080",
-          "proxy": "${NAIVE_NODE_URL}"
-        }
-        EOF
-        
-        echo "正在后台启动 Naive 进程..."
-        $NAIVE_BIN config.json > naive.log 2>&1 &
-        
-        echo "等待本地 1080 端口网关就绪机制建立..."
-        sleep 8
-        
-        echo "=== NaiveProxy 客户端启动检测日志 ==="
-        cat naive.log || echo "无日志输出"
-        echo "=========================================="
-
-    - name: Run Conversion Script
+    - name: Run Direct Conversion Script
       env:
         SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
-        # 完美打通底层网络协议，使 Python 默认通过本地 1080 代理安全抓取
-        ALL_PROXY: "socks5h://127.0.0.1:1080"
+        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: python convert.py
 
     - name: Commit and Push to Repository
@@ -68,6 +33,6 @@ jobs:
         git config --local user.name "GitHub Actions"
         if [ -f "live.m3u" ]; then
           git add live.m3u
-          git commit -m "自动更新：通过原生日本 Naive 链路成功重写静态 M3U 列表" || echo "列表无变化，无需更新"
+          git commit -m "自动更新：纯Python无缝握手同步完成" || echo "列表无变化，无需更新"
           git push
         fi
