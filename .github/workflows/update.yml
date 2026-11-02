@@ -1,4 +1,4 @@
-name: Automated IPTV Playlist Sync (Pure Python)
+name: Automated IPTV Playlist Sync (Final Naive)
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # 显式声明赋予工作流写入仓库代码的权限
+  contents: write # 显式声明读写权限
 
 jobs:
   sync_and_convert:
@@ -15,38 +15,64 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
-        persist-credentials: true # 允许保留凭证用于后续的 git push
+        persist-credentials: true
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Run Direct Conversion Script
+    - name: Download and Run NaiveProxy Client
+      env:
+        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
+      run: |
+        echo "正在下载官方免解压版 NaiveProxy 核心程序..."
+        # 直接下载官方单文件二进制（由社区和官方维护的标准自解压/全静态包）
+        # 绕过 tar/xz 报错问题
+        curl -L -o naive https://github.com || \
+        curl -L -o naive https://github.com
+        
+        # 赋予可执行权限
+        chmod +x naive
+        
+        echo "生成本地 1080 端口转发配置文件..."
+        cat <<EOF > config.json
+        {
+          "listen": "socks://127.0.0.1:1080",
+          "proxy": "${NAIVE_NODE_URL}"
+        }
+        EOF
+        
+        echo "在后台启动 NaiveProxy 核心隧道..."
+        ./naive config.json > naive.log 2>&1 &
+        
+        echo "等待本地 1080 端口就绪建立..."
+        sleep 8
+        
+        echo "=== NaiveProxy 当前运行日志 ==="
+        cat naive.log || echo "无日志"
+        echo "=============================="
+
+    - name: Run Conversion Script
       env:
         SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
-        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
+        # 告诉系统，让所有的网络流量全部强制走本地刚建立好的 1080 网关
+        ALL_PROXY: "socks5h://127.0.0.1:1080"
       run: python convert.py
 
-    # 【核心修复】强制将本地生成的 live.m3u 文件推送到你的代码仓库主分支中
     - name: Commit and Force Push M3U to Repository
       run: |
         git config --local user.email "actions@github.com"
         git config --local user.name "GitHub Actions"
         
-        # 显式检查文件是否存在
         if [ -f "live.m3u" ]; then
-          echo "文件生成成功，正在准备提交..."
+          echo "文件重写清洗成功，正在提交到仓库..."
           git add live.m3u
-          
-          # 即使列表没有变化，也强制提交以更新时间戳，确保国内直连拿到的永远是最新的
-          git commit -m "自动同步：已将通过日本 Naive 节点洗净的最新直播源写入仓库" --allow-empty
-          
-          # 推送到当前分支（通常是 main 或 master）
+          git commit -m "自动同步：已成功将最新源写入仓库" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
-          echo "成功！最新文件已安全写入您的代码仓库主页。"
+          echo "成功！最新播放列表已呈现在您的仓库主页。"
         else
-          echo "错误：脚本未能正确生成 live.m3u 文件"
+          echo "错误：脚本仍未能生成 m3u 文件"
           exit 1
         fi
