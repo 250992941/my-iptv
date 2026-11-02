@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # 确保有权限创建发布页面
+  contents: write # 显式声明赋予工作流写入仓库代码的权限
 
 jobs:
   sync_and_convert:
@@ -14,6 +14,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+      with:
+        persist-credentials: true # 允许保留凭证用于后续的 git push
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -27,20 +29,24 @@ jobs:
         NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: python convert.py
 
-    # 【新增核心步骤】将生成的 live.m3u 自动发布到 GitHub 静态产物中心
-    - name: Upload M3U Playlist to Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: iptv-playlist
-        path: live.m3u
-        retention-days: 7 # 临时保存7天，每次定时任务会自动覆盖更新
-
-    # 【更方便的国内直连法】自动生成一个永久的公开 Release 链接
-    - name: Publish to GitHub Releases
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: latest
-        name: Latest IPTV Source
-        files: live.m3u
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # 【核心修复】强制将本地生成的 live.m3u 文件推送到你的代码仓库主分支中
+    - name: Commit and Force Push M3U to Repository
+      run: |
+        git config --local user.email "actions@github.com"
+        git config --local user.name "GitHub Actions"
+        
+        # 显式检查文件是否存在
+        if [ -f "live.m3u" ]; then
+          echo "文件生成成功，正在准备提交..."
+          git add live.m3u
+          
+          # 即使列表没有变化，也强制提交以更新时间戳，确保国内直连拿到的永远是最新的
+          git commit -m "自动同步：已将通过日本 Naive 节点洗净的最新直播源写入仓库" --allow-empty
+          
+          # 推送到当前分支（通常是 main 或 master）
+          git push origin HEAD:${{ github.ref_name }}
+          echo "成功！最新文件已安全写入您的代码仓库主页。"
+        else
+          echo "错误：脚本未能正确生成 live.m3u 文件"
+          exit 1
+        fi
