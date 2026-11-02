@@ -1,4 +1,4 @@
-name: Automated IPTV Playlist Sync (Final Gateway)
+name: Automated IPTV Playlist Sync (Pure Native)
 
 on:
   schedule:
@@ -22,26 +22,11 @@ jobs:
       with:
         python-version: '3.10'
 
-    # 【终极修复】使用 GitHub 官方市场最稳定的系统级隧道中间件
-    # 自动在虚拟机底层把你的 Naive 节点无缝转换为全局网络网关
-    - name: Connect Global Proxy Gateway
-      uses: rosswood/setup-socks5-action@v1
-      with:
-        # 直接把你的 Naive/HTTPS 节点传给底层安全栈
-        proxy: ${{ secrets.NAIVE_NODE_URL }}
-        port: 1080
-
-    # 加入一个快速测试，确保在执行 Python 之前，底层网络已经是日本家庭/机房原生网络
-    - name: Verify Network Location
-      run: |
-        echo "检查当前虚拟机伪装后的公网出口 IP 和地理位置："
-        curl --connect-timeout 10 https://ifconfig.me || echo "获取超时"
-        curl --connect-timeout 10 https://ipinfo.io || echo "获取位置失败"
-
-    - name: Run Conversion Script
+    - name: Run Native NaiveProxy Logic Script
       env:
         SOURCE_M3U_URL: ${{ secrets.SOURCE_M3U_URL }}
         TARGET_PROXY_DOMAIN: ${{ secrets.TARGET_PROXY_DOMAIN }}
+        NAIVE_NODE_URL: ${{ secrets.NAIVE_NODE_URL }}
       run: python convert.py
 
     - name: Commit and Force Push M3U to Repository
@@ -50,12 +35,12 @@ jobs:
         git config --local user.name "GitHub Actions"
         
         if [ -f "live.m3u" ]; then
-          echo "live.m3u 文件物理生成成功！正在强制推送到代码主页..."
+          echo "live.m3u 文件生成成功，正在推送到仓库..."
           git add live.m3u
           git commit -m "自动同步：静态M3U直播源已成功写入仓库" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
           echo "恭喜！最新文件已成功呈现在您的仓库主页。"
         else
-          echo "致命错误：Python 脚本在网络层依然被阻断，未能生成文件！"
+          echo "错误：Python 脚本未能正确导出 live.m3u 文件"
           exit 1
         fi
