@@ -1,10 +1,10 @@
-name: Automated IPTV Playlist Sync (Pure Local Static)
+name: Automated IPTV Playlist Sync (Pure Static Gate)
 
 on:
-  workflow_dispatch: # 允许你随时手动在后台点击按钮瞬间生成并更新文件
+  workflow_dispatch: # 支持随时手动触发点击生成文件
 
 permissions:
-  contents: write # 给予写入权限
+  contents: write # 给予代码仓库写入权限
 
 jobs:
   sync_and_convert:
@@ -20,7 +20,7 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Run Clean Rewrite Logic
+    - name: Run Static Rewrite Logic
       run: python convert.py
 
     - name: Commit and Force Push M3U to Repository
@@ -30,10 +30,10 @@ jobs:
         
         if [ -f "live.m3u" ]; then
           git add live.m3u
-          git commit -m "自动同步：静态注入版 M3U 直播源已成功写入仓库" --allow-empty
+          git commit -m "自动同步：免服务器公共网关版 M3U 已成功写入仓库" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
-          echo "恭喜！最新文件已成功呈现在您的仓库主页。"
+          echo "恭喜！最新播放列表已成功发布在您的仓库主页。"
         else
-          echo "错误：未能生成文件"
+          echo "错误：未能成功物理生成 live.m3u 文件"
           exit 1
         fi
