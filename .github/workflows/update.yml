@@ -1,10 +1,10 @@
 name: Automated IPTV Playlist Sync (Pure Static Gate)
 
 on:
-  workflow_dispatch: # 支持随时手动触发点击生成文件
+  workflow_dispatch: # 支持随时手动在 Actions 页面点击按钮生成文件
 
 permissions:
-  contents: write # 给予代码仓库写入权限
+  contents: write # 给予代码仓库写入文件的最高权限
 
 jobs:
   sync_and_convert:
@@ -30,7 +30,7 @@ jobs:
         
         if [ -f "live.m3u" ]; then
           git add live.m3u
-          git commit -m "自动同步：免服务器公共网关版 M3U 已成功写入仓库" --allow-empty
+          git commit -m "自动同步：免客户端免服务器公共网关版 M3U 已成功写入仓库" --allow-empty
           git push origin HEAD:${{ github.ref_name }}
           echo "恭喜！最新播放列表已成功发布在您的仓库主页。"
         else
